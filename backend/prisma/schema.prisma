@@ -1,0 +1,433 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum WorkspaceRole {
+  OWNER
+  ADMIN
+  PROJECT_MANAGER
+  MEMBER
+  GUEST
+}
+
+enum PresenceStatus {
+  ONLINE
+  AWAY
+  IN_MEETING
+  DO_NOT_DISTURB
+  OFFLINE
+}
+
+enum RoomType {
+  DIRECT
+  GROUP
+  CHANNEL
+  NOTICE
+  PROJECT
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  FILE
+  SYSTEM
+  TASK
+  NOTICE
+  ISSUE
+}
+
+enum IssueType {
+  EPIC
+  STORY
+  TASK
+  BUG
+  IMPROVEMENT
+  SUB_TASK
+  MEETING
+  DECISION
+}
+
+enum IssueStatus {
+  TODO
+  IN_PROGRESS
+  IN_REVIEW
+  BLOCKED
+  DONE
+  ARCHIVED
+}
+
+enum IssuePriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+  CRITICAL
+}
+
+enum SprintStatus {
+  PLANNED
+  ACTIVE
+  COMPLETED
+}
+
+enum IntegrationProvider {
+  JIRA
+  GITHUB
+  GITLAB
+  SLACK
+  TEAMS
+  NOTION
+  GOOGLE_CALENDAR
+}
+
+enum IntegrationStatus {
+  CONNECTED
+  DISCONNECTED
+  ERROR
+}
+
+model User {
+  id              String           @id @default(cuid())
+  email           String           @unique
+  passwordHash    String
+  name            String
+  avatarUrl       String?
+  department      String?
+  position        String?
+  statusMessage   String?
+  presenceStatus  PresenceStatus   @default(OFFLINE)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  memberships     WorkspaceMember[]
+  messages        Message[]
+  reportedIssues  Issue[]          @relation("IssueReporter")
+  assignedIssues  Issue[]          @relation("IssueAssignee")
+}
+
+model Workspace {
+  id            String            @id @default(cuid())
+  name          String
+  logoUrl       String?
+  ownerId       String
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  members       WorkspaceMember[]
+  rooms         Room[]
+  projects      Project[]
+  issueLabels   IssueLabel[]
+  integrations  Integration[]
+  notifications Notification[]
+  activityLogs  ActivityLog[]
+}
+
+model WorkspaceMember {
+  id          String        @id @default(cuid())
+  workspaceId String
+  userId      String
+  role        WorkspaceRole @default(MEMBER)
+  joinedAt    DateTime      @default(now())
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+}
+
+model Room {
+  id            String       @id @default(cuid())
+  workspaceId   String
+  projectId     String?
+  type          RoomType
+  name          String
+  avatarUrl     String?
+  lastMessageId String?
+  createdBy     String
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  workspace     Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project       Project?     @relation(fields: [projectId], references: [id])
+  members       RoomMember[]
+  messages      Message[]
+  notices       Notice[]
+  tasks         Task[]
+}
+
+model RoomMember {
+  id                String   @id @default(cuid())
+  roomId            String
+  userId            String
+  role              String   @default("MEMBER")
+  lastReadMessageId String?
+  muted             Boolean  @default(false)
+  pinned            Boolean  @default(false)
+  joinedAt          DateTime @default(now())
+  room              Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, userId])
+}
+
+model Message {
+  id               String            @id @default(cuid())
+  roomId           String
+  senderId         String
+  type             MessageType       @default(TEXT)
+  content          String
+  metadata         Json?
+  replyToMessageId String?
+  linkedIssueId    String?
+  editedAt         DateTime?
+  deletedAt        DateTime?
+  createdAt        DateTime          @default(now())
+  room             Room              @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  sender           User              @relation(fields: [senderId], references: [id])
+  linkedIssue      Issue?            @relation(fields: [linkedIssueId], references: [id])
+  reactions        MessageReaction[]
+  attachments      Attachment[]
+}
+
+model MessageReaction {
+  id        String   @id @default(cuid())
+  messageId String
+  userId    String
+  emoji     String
+  createdAt DateTime @default(now())
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId, emoji])
+}
+
+model Attachment {
+  id          String   @id @default(cuid())
+  workspaceId String
+  messageId   String?
+  issueId     String?
+  uploaderId  String
+  fileName    String
+  fileUrl     String
+  mimeType    String
+  size        Int
+  createdAt   DateTime @default(now())
+  message     Message? @relation(fields: [messageId], references: [id])
+  issue       Issue?   @relation(fields: [issueId], references: [id])
+}
+
+model Project {
+  id          String          @id @default(cuid())
+  workspaceId String
+  key         String
+  name        String
+  description String?
+  icon        String?
+  color       String
+  leadId      String
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  workspace   Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  rooms       Room[]
+  members     ProjectMember[]
+  issues      Issue[]
+  sprints     Sprint[]
+
+  @@unique([workspaceId, key])
+}
+
+model ProjectMember {
+  id        String   @id @default(cuid())
+  projectId String
+  userId    String
+  role      String   @default("MEMBER")
+  joinedAt  DateTime @default(now())
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+}
+
+model Issue {
+  id               String          @id @default(cuid())
+  workspaceId      String
+  projectId        String
+  issueKey         String          @unique
+  type             IssueType       @default(TASK)
+  title            String
+  description      String?
+  status           IssueStatus     @default(TODO)
+  priority         IssuePriority   @default(MEDIUM)
+  reporterId       String
+  assigneeId       String?
+  parentIssueId    String?
+  sprintId         String?
+  storyPoints      Int?
+  dueDate          DateTime?
+  externalProvider String?
+  externalIssueKey String?
+  externalIssueUrl String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  deletedAt        DateTime?
+  project          Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  reporter         User            @relation("IssueReporter", fields: [reporterId], references: [id])
+  assignee         User?           @relation("IssueAssignee", fields: [assigneeId], references: [id])
+  parent           Issue?          @relation("IssueHierarchy", fields: [parentIssueId], references: [id])
+  children         Issue[]         @relation("IssueHierarchy")
+  sprint           Sprint?         @relation(fields: [sprintId], references: [id])
+  comments         IssueComment[]
+  watchers         IssueWatcher[]
+  labelLinks       IssueLabelLink[]
+  sourceLinks      IssueLink[]      @relation("SourceIssue")
+  targetLinks      IssueLink[]      @relation("TargetIssue")
+  attachments      Attachment[]
+  linkedMessages   Message[]
+  tasks            Task[]
+}
+
+model IssueComment {
+  id        String    @id @default(cuid())
+  issueId   String
+  authorId  String
+  content   String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+  issue     Issue     @relation(fields: [issueId], references: [id], onDelete: Cascade)
+}
+
+model IssueWatcher {
+  id        String   @id @default(cuid())
+  issueId   String
+  userId    String
+  createdAt DateTime @default(now())
+  issue     Issue    @relation(fields: [issueId], references: [id], onDelete: Cascade)
+
+  @@unique([issueId, userId])
+}
+
+model IssueLabel {
+  id          String           @id @default(cuid())
+  workspaceId String
+  name        String
+  color       String
+  createdAt   DateTime         @default(now())
+  workspace   Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  issueLinks  IssueLabelLink[]
+
+  @@unique([workspaceId, name])
+}
+
+model IssueLabelLink {
+  id      String     @id @default(cuid())
+  issueId String
+  labelId String
+  issue   Issue      @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  label   IssueLabel @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  @@unique([issueId, labelId])
+}
+
+model IssueLink {
+  id            String   @id @default(cuid())
+  sourceIssueId String
+  targetIssueId String
+  type          String
+  createdAt     DateTime @default(now())
+  sourceIssue   Issue    @relation("SourceIssue", fields: [sourceIssueId], references: [id], onDelete: Cascade)
+  targetIssue   Issue    @relation("TargetIssue", fields: [targetIssueId], references: [id], onDelete: Cascade)
+}
+
+model Sprint {
+  id          String       @id @default(cuid())
+  workspaceId String
+  projectId   String
+  name        String
+  goal        String?
+  status      SprintStatus @default(PLANNED)
+  startDate   DateTime?
+  endDate     DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  issues      Issue[]
+}
+
+model Task {
+  id          String   @id @default(cuid())
+  workspaceId String
+  roomId      String?
+  messageId   String?
+  issueId     String?
+  title       String
+  description String?
+  assigneeId  String?
+  status      String   @default("TODO")
+  dueDate     DateTime?
+  createdBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  room        Room?    @relation(fields: [roomId], references: [id])
+  issue       Issue?   @relation(fields: [issueId], references: [id])
+}
+
+model Notice {
+  id          String   @id @default(cuid())
+  workspaceId String
+  roomId      String?
+  title       String
+  content     String
+  pinned      Boolean  @default(false)
+  createdBy   String
+  createdAt   DateTime @default(now())
+  room        Room?    @relation(fields: [roomId], references: [id])
+}
+
+model Notification {
+  id          String    @id @default(cuid())
+  workspaceId String
+  userId      String
+  type        String
+  title       String
+  body        String
+  read        Boolean   @default(false)
+  data        Json?
+  createdAt   DateTime  @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+model Integration {
+  id              String              @id @default(cuid())
+  workspaceId     String
+  provider        IntegrationProvider
+  name            String
+  status          IntegrationStatus   @default(DISCONNECTED)
+  encryptedConfig String?
+  createdBy       String
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  workspace       Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  webhooks        Webhook[]
+}
+
+model Webhook {
+  id            String      @id @default(cuid())
+  workspaceId   String
+  integrationId String?
+  eventType     String
+  secret        String
+  enabled       Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+  integration   Integration? @relation(fields: [integrationId], references: [id])
+}
+
+model ActivityLog {
+  id          String    @id @default(cuid())
+  workspaceId String
+  actorId     String
+  entityType  String
+  entityId    String
+  action      String
+  metadata    Json?
+  createdAt   DateTime  @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}

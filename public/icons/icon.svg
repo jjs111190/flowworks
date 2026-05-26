@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="FlowWorks">
+  <defs>
+    <linearGradient id="bg" x1="96" y1="48" x2="416" y2="464" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FBFCFF"/>
+      <stop offset="1" stop-color="#E8EEF7"/>
+    </linearGradient>
+    <linearGradient id="mark" x1="144" y1="128" x2="368" y2="384" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F172A"/>
+      <stop offset="1" stop-color="#334155"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <path d="M136 148c0-25 20-45 45-45h150c25 0 45 20 45 45v216c0 25-20 45-45 45H181c-25 0-45-20-45-45V148Z" fill="white"/>
+  <path d="M188 192h136M188 256h96M188 320h136" stroke="url(#mark)" stroke-width="32" stroke-linecap="round"/>
+  <circle cx="340" cy="256" r="16" fill="#3B82F6"/>
+  <circle cx="340" cy="320" r="16" fill="#94A3B8"/>
+</svg>

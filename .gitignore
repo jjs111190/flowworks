@@ -1,0 +1,13 @@
+node_modules
+dist
+.env
+.DS_Store
+*.tsbuildinfo
+coverage
+backend/data/*.json
+backend/prisma/migrations
+android/local.properties
+android/.gradle
+android/**/build
+ios/**/DerivedData
+ios/**/xcuserdata
