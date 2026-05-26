@@ -9,7 +9,7 @@ export function ProjectCard({ project, issues, members, onClick }: { project: Pr
     <button className="project-card" onClick={onClick}>
       <span className="project-dot" style={{ background: project.color }} />
       <strong>{project.name}</strong>
-      <small>{project.key} · {issues.filter((issue) => issue.status !== "DONE").length} open issues</small>
+      <small>{project.key} · 미완료 이슈 {issues.filter((issue) => issue.status !== "DONE").length}개</small>
       <div className="progress"><i style={{ width: `${progress}%` }} /></div>
       <footer><span>{progress}%</span><UserAvatarGroup users={members} /></footer>
     </button>
@@ -53,7 +53,7 @@ export function IssueListItem({ issue, assignee, active, onClick }: { issue: Iss
 
 export function IssueDetailPanel({ issue, assignee, reporter, comments }: { issue?: Issue; assignee?: User; reporter?: User; comments: Array<{ id: string; content: string; authorId: string; createdAt: string }> }) {
   if (!issue) {
-    return <AppCard><strong>Select an issue</strong><p className="muted">Choose an issue to view details, comments, linked messages, and Jira sync state.</p></AppCard>;
+    return <AppCard><strong>이슈를 선택하세요</strong><p className="muted">상세 정보, 댓글, 연결 메시지, Jira 동기화 상태를 확인할 이슈를 선택하세요.</p></AppCard>;
   }
   return (
     <AppCard className="issue-detail">
@@ -65,17 +65,17 @@ export function IssueDetailPanel({ issue, assignee, reporter, comments }: { issu
         <StatusBadge status={issue.status} />
         <PriorityBadge priority={issue.priority} />
       </header>
-      <p>{issue.description ?? "No description yet."}</p>
+      <p>{issue.description ?? "아직 설명이 없습니다."}</p>
       <div className="detail-grid">
-        <span><small>Assignee</small><b>{assignee?.name ?? "Unassigned"}</b></span>
-        <span><small>Reporter</small><b>{reporter?.name ?? "Unknown"}</b></span>
-        <span><small>Due date</small><b>{issue.dueDate ? new Date(issue.dueDate).toLocaleDateString() : "None"}</b></span>
-        <span><small>Sprint</small><b>{issue.sprintId ?? "Backlog"}</b></span>
+        <span><small>담당자</small><b>{assignee?.name ?? "미지정"}</b></span>
+        <span><small>보고자</small><b>{reporter?.name ?? "알 수 없음"}</b></span>
+        <span><small>마감일</small><b>{issue.dueDate ? new Date(issue.dueDate).toLocaleDateString() : "없음"}</b></span>
+        <span><small>스프린트</small><b>{issue.sprintId ?? "백로그"}</b></span>
       </div>
-      {issue.externalIssueKey && <a className="external-link" href={issue.externalIssueUrl} target="_blank" rel="noreferrer">External Jira: {issue.externalIssueKey}</a>}
-      <h3>Comments</h3>
+      {issue.externalIssueKey && <a className="external-link" href={issue.externalIssueUrl} target="_blank" rel="noreferrer">외부 Jira: {issue.externalIssueKey}</a>}
+      <h3>댓글</h3>
       <div className="comment-list">
-        {comments.length === 0 ? <p className="muted">No comments yet.</p> : comments.map((comment) => <p key={comment.id}>{comment.content}</p>)}
+        {comments.length === 0 ? <p className="muted">아직 댓글이 없습니다.</p> : comments.map((comment) => <p key={comment.id}>{comment.content}</p>)}
       </div>
     </AppCard>
   );

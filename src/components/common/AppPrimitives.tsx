@@ -95,7 +95,7 @@ export function LoadingView() {
   return (
     <div className="loading-view">
       <Loader2 className="spin" size={26} />
-      <span>Loading FlowWorks</span>
+      <span>FlowWorks를 불러오는 중</span>
     </div>
   );
 }
@@ -105,7 +105,7 @@ export function ErrorView({ message, onRetry }: { message: string; onRetry: () =
     <div className="loading-view">
       <AlertCircle size={28} />
       <strong>{message}</strong>
-      <AppButton onClick={onRetry}>Retry</AppButton>
+      <AppButton onClick={onRetry}>다시 시도</AppButton>
     </div>
   );
 }

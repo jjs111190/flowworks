@@ -1,7 +1,8 @@
 import { AtSign, FileText, Link2, MoreHorizontal, Plus, Send, SmilePlus } from "lucide-react";
-import { memo, useMemo, useState } from "react";
+import { memo, useMemo, useRef, useState } from "react";
 import { AppButton, Avatar, Badge, IconButton } from "../common/AppPrimitives";
 import type { Message, Room, User } from "../../types/models";
+import { validateUploadFile } from "../../services/storage/filePolicy";
 
 export const ChatRoomListItem = memo(function ChatRoomListItem({
   room,
@@ -21,7 +22,7 @@ export const ChatRoomListItem = memo(function ChatRoomListItem({
       <span className="room-avatar">#</span>
       <span className="room-main">
         <strong>{room.name}</strong>
-        <small>{lastMessage?.content ?? "No messages yet"}</small>
+        <small>{lastMessage?.content ?? "아직 메시지가 없습니다"}</small>
       </span>
       <span className="room-meta">
         <small>{lastMessage ? new Date(lastMessage.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}</small>
@@ -57,7 +58,7 @@ export const MessageBubble = memo(function MessageBubble({
     <div className={`message-row ${mine ? "mine" : ""}`}>
       {!mine && <Avatar user={sender} size={30} />}
       <div className="message-stack">
-        {!mine && <small className="sender-name">{sender?.name ?? "Unknown"}</small>}
+        {!mine && <small className="sender-name">{sender?.name ?? "알 수 없음"}</small>}
         <div className={`message-bubble type-${message.type.toLowerCase()}`}>
           {message.type === "FILE" && (
             <div className="file-card">
@@ -69,28 +70,27 @@ export const MessageBubble = memo(function MessageBubble({
           {mentions.length > 0 && <div className="mention-line">{mentions.map((item) => <Badge key={item} tone="blue">{item}</Badge>)}</div>}
           <footer>
             <span>{new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
-            {message.editedAt && <span>edited</span>}
-            {message.optimistic && <span>sending</span>}
-            {message.failed && <button onClick={() => undefined}>retry</button>}
-            {message.linkedIssueId && <Badge tone="green">Issue linked</Badge>}
+            {message.editedAt && <span>수정됨</span>}
+            {message.optimistic && <span>전송 중</span>}
+            {message.failed && <button onClick={() => undefined}>재전송</button>}
+            {message.linkedIssueId && <Badge tone="green">이슈 연결됨</Badge>}
           </footer>
         </div>
         <div className="message-actions">
-          <button onClick={onIssue}>Create issue</button>
-          <button onClick={onTask}>Create task</button>
-          {mine && <button onClick={onEdit}>Edit</button>}
-          {mine && <button onClick={onDelete}>Delete</button>}
-          <button>Notice</button>
-          <button>Reply</button>
+          <button onClick={onIssue}>이슈로 만들기</button>
+          <button onClick={onTask}>할 일로 만들기</button>
+          {mine && <button onClick={onEdit}>수정</button>}
+          {mine && <button onClick={onDelete}>삭제</button>}
         </div>
       </div>
     </div>
   );
 });
 
-export function MessageInput({ onSend }: { onSend: (value: string) => Promise<void> }) {
+export function MessageInput({ onSend, onSendFile }: { onSend: (value: string) => Promise<void>; onSendFile: (file: File) => Promise<void> }) {
   const [value, setValue] = useState("");
   const [sending, setSending] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   async function submit() {
     if (!value.trim() || sending) return;
     const next = value.trim();
@@ -99,12 +99,32 @@ export function MessageInput({ onSend }: { onSend: (value: string) => Promise<vo
     await onSend(next);
     setSending(false);
   }
+  async function submitFile(file?: File) {
+    if (!file || sending) return;
+    const result = validateUploadFile(file);
+    if (!result.ok) {
+      window.alert(result.reason);
+      return;
+    }
+    setSending(true);
+    await onSendFile(file);
+    setSending(false);
+  }
   return (
     <div className="message-input">
-      <IconButton label="Attach file"><Plus size={18} /></IconButton>
-      <IconButton label="Add emoji"><SmilePlus size={18} /></IconButton>
-      <IconButton label="Mention"><AtSign size={18} /></IconButton>
-      <IconButton label="Link issue"><Link2 size={18} /></IconButton>
+      <input
+        ref={fileInputRef}
+        type="file"
+        className="visually-hidden"
+        onChange={(event) => {
+          void submitFile(event.target.files?.[0]);
+          event.currentTarget.value = "";
+        }}
+      />
+      <IconButton label="파일 첨부" onClick={() => fileInputRef.current?.click()}><Plus size={18} /></IconButton>
+      <IconButton label="이모지 추가" onClick={() => setValue((current) => `${current} 좋아요`)}><SmilePlus size={18} /></IconButton>
+      <IconButton label="멘션 추가" onClick={() => setValue((current) => `${current}@`)}><AtSign size={18} /></IconButton>
+      <IconButton label="이슈 키 추가" onClick={() => setValue((current) => `${current} FLOW-`)}><Link2 size={18} /></IconButton>
       <textarea
         value={value}
         onChange={(event) => setValue(event.target.value)}
@@ -114,7 +134,7 @@ export function MessageInput({ onSend }: { onSend: (value: string) => Promise<vo
             void submit();
           }
         }}
-        placeholder="Message, @mention, #project, or FLOW-1"
+        placeholder="메시지, @멘션, #프로젝트, FLOW-1을 입력하세요"
       />
       <AppButton className="send-button" disabled={!value.trim() || sending} onClick={() => void submit()}>
         <Send size={16} />
@@ -125,9 +145,9 @@ export function MessageInput({ onSend }: { onSend: (value: string) => Promise<vo
 
 export function TypingIndicator({ names }: { names: string[] }) {
   if (names.length === 0) return null;
-  return <div className="typing-indicator">{names.join(", ")} typing...</div>;
+  return <div className="typing-indicator">{names.join(", ")} 입력 중...</div>;
 }
 
 export function ReactionBar() {
-  return <div className="reaction-bar"><button>+1</button><button>eyes</button><button>done</button><MoreHorizontal size={14} /></div>;
+  return <div className="reaction-bar"><button>좋아요</button><button>확인</button><button>완료</button><MoreHorizontal size={14} /></div>;
 }

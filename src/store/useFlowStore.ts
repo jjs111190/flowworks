@@ -64,6 +64,7 @@ interface FlowState {
   setSearch: (value: string) => void;
   toggleTheme: () => void;
   sendMessage: (roomId: string, content: string) => Promise<void>;
+  sendFileMessage: (roomId: string, file: File) => Promise<void>;
   updateMessage: (messageId: string, content: string) => Promise<void>;
   deleteMessage: (messageId: string) => Promise<void>;
   createIssueFromMessage: (messageId: string) => Promise<void>;
@@ -71,6 +72,7 @@ interface FlowState {
   createIssue: (title: string) => Promise<void>;
   moveIssue: (issueId: string, status: IssueStatus) => Promise<void>;
   addIssueComment: (issueId: string, content: string) => Promise<void>;
+  markNotificationRead: (notificationId: string) => Promise<void>;
   connectJira: (cloudUrl: string, email: string, apiToken: string) => Promise<void>;
   exportBackup: () => Promise<void>;
   importBackup: (file: File) => Promise<void>;
@@ -134,7 +136,7 @@ export const useFlowStore = create<FlowState>((set, get) => ({
       await api.login(email, password);
       await get().bootstrap();
     } catch (error) {
-      set({ loading: false, error: error instanceof Error ? error.message : "Login failed" });
+      set({ loading: false, error: error instanceof Error ? error.message : "로그인에 실패했습니다" });
     }
   },
   async register(input) {
@@ -143,7 +145,7 @@ export const useFlowStore = create<FlowState>((set, get) => ({
       await api.register(input);
       await get().bootstrap();
     } catch (error) {
-      set({ loading: false, error: error instanceof Error ? error.message : "Registration failed" });
+      set({ loading: false, error: error instanceof Error ? error.message : "회원가입에 실패했습니다" });
     }
   },
   async bootstrap() {
@@ -157,7 +159,7 @@ export const useFlowStore = create<FlowState>((set, get) => ({
       flowSocket.on((event) => get().handleEvent(event));
       set({ socketStatus: flowSocket.status });
     } catch (error) {
-      set({ booted: true, loading: false, error: error instanceof Error ? error.message : "Bootstrap failed" });
+      set({ booted: true, loading: false, error: error instanceof Error ? error.message : "앱 데이터를 불러오지 못했습니다" });
     }
   },
   logout() {
@@ -195,6 +197,21 @@ export const useFlowStore = create<FlowState>((set, get) => ({
       const offlineQueue = [...get().offlineQueue, { id: tempId, roomId, content }];
       localStorage.setItem("flowworks.offlineQueue", JSON.stringify(offlineQueue));
       set({ offlineQueue, messages: get().messages.map((item) => (item.id === tempId ? { ...item, optimistic: false, failed: true } : item)) });
+    }
+  },
+  async sendFileMessage(roomId, file) {
+    const content = file.name;
+    const tempId = `temp_file_${Date.now()}`;
+    const user = get().user;
+    if (!user) return;
+    const metadata = { fileName: file.name, size: `${Math.round(file.size / 1024)}KB`, mimeType: file.type || "application/octet-stream" };
+    const optimistic: Message = { id: tempId, roomId, senderId: user.id, content, metadata, type: "FILE", createdAt: new Date().toISOString(), optimistic: true };
+    set({ messages: [...get().messages, optimistic] });
+    try {
+      const message = await api.sendMessage(roomId, content, metadata);
+      set({ messages: get().messages.map((item) => (item.id === tempId ? message : item)) });
+    } catch {
+      set({ messages: get().messages.map((item) => (item.id === tempId ? { ...item, optimistic: false, failed: true } : item)) });
     }
   },
   async updateMessage(messageId, content) {
@@ -237,6 +254,10 @@ export const useFlowStore = create<FlowState>((set, get) => ({
       issueComments: [...get().issueComments, comment],
       issues: get().issues.map((issue) => (issue.id === issueId ? { ...issue, commentCount: issue.commentCount + 1 } : issue))
     });
+  },
+  async markNotificationRead(notificationId) {
+    const notification = await api.markNotificationRead(notificationId);
+    set({ notifications: get().notifications.map((item) => (item.id === notification.id ? notification : item)) });
   },
   async connectJira(cloudUrl, email, apiToken) {
     const workspaceId = get().activeWorkspaceId;

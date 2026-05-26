@@ -28,18 +28,42 @@ import { useFlowStore } from "./store/useFlowStore";
 import type { IssueStatus, Message } from "./types/models";
 
 const navItems = [
-  { id: "home", label: "Home", icon: Home },
-  { id: "chat", label: "Chat", icon: MessageCircle },
-  { id: "projects", label: "Projects", icon: BriefcaseBusiness },
-  { id: "board", label: "Board", icon: KanbanSquare },
-  { id: "backlog", label: "Backlog", icon: CheckSquare },
-  { id: "tasks", label: "Tasks", icon: CheckSquare },
-  { id: "files", label: "Files", icon: Files },
-  { id: "notifications", label: "Alerts", icon: Bell },
-  { id: "integrations", label: "Integrations", icon: Plug },
-  { id: "admin", label: "Admin", icon: Shield },
-  { id: "settings", label: "Settings", icon: Settings }
+  { id: "home", label: "홈", icon: Home },
+  { id: "chat", label: "채팅", icon: MessageCircle },
+  { id: "projects", label: "프로젝트", icon: BriefcaseBusiness },
+  { id: "board", label: "보드", icon: KanbanSquare },
+  { id: "backlog", label: "백로그", icon: CheckSquare },
+  { id: "tasks", label: "업무", icon: CheckSquare },
+  { id: "files", label: "파일", icon: Files },
+  { id: "notifications", label: "알림", icon: Bell },
+  { id: "integrations", label: "연동", icon: Plug },
+  { id: "admin", label: "관리자", icon: Shield },
+  { id: "settings", label: "설정", icon: Settings }
 ] as const;
+
+const socketStatusLabel = {
+  CONNECTED: "연결됨",
+  CONNECTING: "연결 중",
+  DISCONNECTED: "오프라인"
+} as const;
+
+const sprintStatusLabel: Record<string, string> = {
+  PLANNED: "계획됨",
+  ACTIVE: "진행 중",
+  COMPLETED: "완료"
+};
+
+const roleLabel: Record<string, string> = {
+  OWNER: "소유자",
+  ADMIN: "관리자",
+  PROJECT_MANAGER: "프로젝트 관리자",
+  MEMBER: "멤버",
+  GUEST: "게스트"
+};
+
+const activityLabel: Record<string, string> = {
+  STANDALONE_READY: "서버 없는 앱 준비 완료"
+};
 
 export function App() {
   const store = useFlowStore();
@@ -69,7 +93,7 @@ export function App() {
             {workspace.name.slice(0, 2).toUpperCase()}
           </button>
         ))}
-        <button title="Theme" onClick={store.toggleTheme}>{store.themeMode === "light" ? <Moon size={18} /> : <Sun size={18} />}</button>
+        <button title="테마 변경" onClick={store.toggleTheme}>{store.themeMode === "light" ? <Moon size={18} /> : <Sun size={18} />}</button>
       </aside>
 
       <aside className="side-panel">
@@ -80,7 +104,7 @@ export function App() {
           </div>
           <Avatar user={store.user} />
         </header>
-        <SearchBar value={store.search} onChange={store.setSearch} placeholder="Search messages, issues, files" />
+        <SearchBar value={store.search} onChange={store.setSearch} placeholder="메시지, 이슈, 파일 검색" />
         <nav className="app-nav">
           {navItems.map(({ id, label, icon: Icon }) => (
             <button key={id} className={store.activeView === id ? "active" : ""} onClick={() => store.setView(id)}>
@@ -94,7 +118,7 @@ export function App() {
       </aside>
 
       <main className="detail-panel">
-        <TopBar workspaceName={activeWorkspace?.name ?? "Workspace"} projectName={activeProject?.name} roomName={activeRoom?.name} />
+        <TopBar workspaceName={activeWorkspace?.name ?? "워크스페이스"} projectName={activeProject?.name} roomName={activeRoom?.name} />
         {store.loading && !store.booted ? <SkeletonView /> : <ActiveView />}
       </main>
 
@@ -108,30 +132,30 @@ function AuthScreen() {
   const [mode, setMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("jae@flowworks.local");
   const [password, setPassword] = useState("flowworks123!");
-  const [name, setName] = useState("New Member");
-  const [workspaceName, setWorkspaceName] = useState("FlowWorks Team");
+  const [name, setName] = useState("새 멤버");
+  const [workspaceName, setWorkspaceName] = useState("FlowWorks 팀");
 
   return (
     <div className="auth-shell">
       <section className="auth-hero">
         <span>FlowWorks</span>
-        <h1>Chat, work, issues, and sprints in one clean workspace.</h1>
-        <p>Built for teams that need fast messaging, structured collaboration, and Jira-style execution without the clutter.</p>
+        <h1>채팅, 업무, 이슈, 스프린트를 하나의 깔끔한 워크스페이스에서 관리하세요.</h1>
+        <p>빠른 업무 채팅, 구조화된 협업, Jira형 실행 관리를 복잡함 없이 사용할 수 있도록 만든 무료 로컬 우선 앱입니다.</p>
       </section>
       <AppCard className="auth-card">
         <div className="auth-tabs">
-          <button className={mode === "login" ? "active" : ""} onClick={() => setMode("login")}>Login</button>
-          <button className={mode === "register" ? "active" : ""} onClick={() => setMode("register")}>Sign up</button>
+          <button className={mode === "login" ? "active" : ""} onClick={() => setMode("login")}>로그인</button>
+          <button className={mode === "register" ? "active" : ""} onClick={() => setMode("register")}>회원가입</button>
         </div>
-        {mode === "register" && <AppInput value={name} onChange={(event) => setName(event.target.value)} placeholder="Name" />}
-        {mode === "register" && <AppInput value={workspaceName} onChange={(event) => setWorkspaceName(event.target.value)} placeholder="Workspace name" />}
-        <AppInput value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Email" />
-        <AppInput value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Password" type="password" />
+        {mode === "register" && <AppInput value={name} onChange={(event) => setName(event.target.value)} placeholder="이름" />}
+        {mode === "register" && <AppInput value={workspaceName} onChange={(event) => setWorkspaceName(event.target.value)} placeholder="워크스페이스 이름" />}
+        <AppInput value={email} onChange={(event) => setEmail(event.target.value)} placeholder="이메일" />
+        <AppInput value={password} onChange={(event) => setPassword(event.target.value)} placeholder="비밀번호" type="password" />
         {store.error && <p className="form-error">{store.error}</p>}
         <AppButton onClick={() => mode === "login" ? void store.login(email, password) : void store.register({ email, password, name, workspaceName })}>
-          {store.loading ? "Please wait..." : mode === "login" ? "Login" : "Create workspace"}
+          {store.loading ? "처리 중..." : mode === "login" ? "로그인" : "워크스페이스 만들기"}
         </AppButton>
-        <p className="muted">Demo account: jae@flowworks.local / flowworks123!</p>
+        <p className="muted">데모 계정: jae@flowworks.local / flowworks123!</p>
       </AppCard>
     </div>
   );
@@ -143,11 +167,11 @@ function TopBar({ workspaceName, projectName, roomName }: { workspaceName: strin
     <header className="top-bar">
       <div>
         <small>{workspaceName}</small>
-        <strong>{store.activeView === "chat" ? `#${roomName}` : projectName ?? "Dashboard"}</strong>
+        <strong>{store.activeView === "chat" ? `#${roomName}` : projectName ?? "대시보드"}</strong>
       </div>
       <div className="top-actions">
-        <span className={`socket-pill ${store.socketStatus.toLowerCase()}`}>{store.socketStatus.toLowerCase()}</span>
-        <AppButton onClick={() => void store.createIssue("New issue from quick add")}>New issue</AppButton>
+        <span className={`socket-pill ${store.socketStatus.toLowerCase()}`}>{socketStatusLabel[store.socketStatus]}</span>
+        <AppButton onClick={() => void store.createIssue("빠른 추가 이슈")}>새 이슈</AppButton>
       </div>
     </header>
   );
@@ -162,7 +186,7 @@ function ContextList() {
   if (store.activeView === "chat") {
     return (
       <div className="context-list">
-        <h2>Rooms</h2>
+        <h2>채팅방</h2>
         {rooms.map((room) => (
           <ChatRoomListItem
             key={room.id}
@@ -180,7 +204,7 @@ function ContextList() {
   if (["projects", "board", "backlog"].includes(store.activeView)) {
     return (
       <div className="context-list">
-        <h2>Projects</h2>
+        <h2>프로젝트</h2>
         {projects.map((project) => (
           <ProjectCard
             key={project.id}
@@ -190,7 +214,7 @@ function ContextList() {
             onClick={() => store.setProject(project.id)}
           />
         ))}
-        <h2>Issues</h2>
+        <h2>이슈</h2>
         {filteredIssues.slice(0, 8).map((issue) => (
           <IssueListItem
             key={issue.id}
@@ -206,10 +230,10 @@ function ContextList() {
 
   return (
     <div className="context-list">
-      <h2>Quick status</h2>
+      <h2>요약 상태</h2>
       <AppCard>
-        <strong>{store.notifications.filter((item) => !item.read).length} unread alerts</strong>
-        <p className="muted">{store.issues.filter((issue) => issue.assigneeId === store.user?.id && issue.status !== "DONE").length} open assigned issues</p>
+        <strong>읽지 않은 알림 {store.notifications.filter((item) => !item.read).length}개</strong>
+        <p className="muted">내 미완료 이슈 {store.issues.filter((issue) => issue.assigneeId === store.user?.id && issue.status !== "DONE").length}개</p>
       </AppCard>
     </div>
   );
@@ -236,17 +260,17 @@ function HomeDashboard() {
   const dueSoon = assigned.filter((issue) => issue.dueDate && new Date(issue.dueDate).getTime() < Date.now() + 1000 * 60 * 60 * 48);
   return (
     <div className="dashboard-grid">
-      <Metric title="Unread alerts" value={store.notifications.filter((item) => !item.read).length} />
-      <Metric title="Assigned issues" value={assigned.length} />
-      <Metric title="Due soon" value={dueSoon.length} />
-      <Metric title="Active projects" value={store.projects.length} />
+      <Metric title="읽지 않은 알림" value={store.notifications.filter((item) => !item.read).length} />
+      <Metric title="내 담당 이슈" value={assigned.length} />
+      <Metric title="마감 임박" value={dueSoon.length} />
+      <Metric title="진행 프로젝트" value={store.projects.length} />
       <AppCard className="wide-card">
-        <h2>Today</h2>
-        {dueSoon.length === 0 ? <EmptyState title="No urgent work" body="Your current sprint has no items due in the next 48 hours." /> : dueSoon.map((issue) => <IssueListItem key={issue.id} issue={issue} assignee={store.user} active={false} onClick={() => store.setIssue(issue.id)} />)}
+        <h2>오늘</h2>
+        {dueSoon.length === 0 ? <EmptyState title="긴급 업무가 없습니다" body="앞으로 48시간 안에 마감되는 스프린트 항목이 없습니다." /> : dueSoon.map((issue) => <IssueListItem key={issue.id} issue={issue} assignee={store.user} active={false} onClick={() => store.setIssue(issue.id)} />)}
       </AppCard>
       <AppCard>
-        <h2>Recent activity</h2>
-        {store.activityLogs.slice(-5).map((log) => <p key={log.id} className="activity-line">{log.action.replaceAll("_", " ")} · {new Date(log.createdAt).toLocaleTimeString()}</p>)}
+        <h2>최근 활동</h2>
+        {store.activityLogs.slice(-5).map((log) => <p key={log.id} className="activity-line">{activityLabel[log.action] ?? log.action.replaceAll("_", " ")} · {new Date(log.createdAt).toLocaleTimeString()}</p>)}
       </AppCard>
     </div>
   );
@@ -263,7 +287,7 @@ function ChatView() {
   return (
     <div className="chat-view">
       <div className="message-list">
-        {messages.length === 0 && <EmptyState title="Start the conversation" body="Send a message, share a file, or create an issue from chat." />}
+        {messages.length === 0 && <EmptyState title="대화를 시작하세요" body="메시지를 보내고, 파일을 공유하고, 채팅에서 바로 이슈를 만들 수 있습니다." />}
         {messages.map((message) => {
           const date = new Date(message.createdAt).toDateString();
           const showDate = date !== lastDate;
@@ -278,18 +302,18 @@ function ChatView() {
                 onIssue={() => void store.createIssueFromMessage(message.id)}
                 onTask={() => void store.createTaskFromMessage(message.id)}
                 onEdit={() => {
-                  const next = window.prompt("Edit message", message.content);
+                  const next = window.prompt("메시지 수정", message.content);
                   if (next?.trim()) void store.updateMessage(message.id, next.trim());
                 }}
                 onDelete={() => {
-                  if (window.confirm("Delete this message?")) void store.deleteMessage(message.id);
+                  if (window.confirm("이 메시지를 삭제할까요?")) void store.deleteMessage(message.id);
                 }}
               />
             </div>
           );
         })}
       </div>
-      {store.activeRoomId && <MessageInput onSend={(value) => store.sendMessage(store.activeRoomId!, value)} />}
+      {store.activeRoomId && <MessageInput onSend={(value) => store.sendMessage(store.activeRoomId!, value)} onSendFile={(file) => store.sendFileMessage(store.activeRoomId!, file)} />}
     </div>
   );
 }
@@ -302,7 +326,7 @@ function ProjectsView() {
   return (
     <div className="split-view">
       <section className="content-list">
-        <h2>{project?.name ?? "Projects"}</h2>
+        <h2>{project?.name ?? "프로젝트"}</h2>
         {projectIssues.map((issue) => (
           <IssueListItem key={issue.id} issue={issue} assignee={store.users.find((user) => user.id === issue.assigneeId)} active={detail?.id === issue.id} onClick={() => store.setIssue(issue.id)} />
         ))}
@@ -321,7 +345,7 @@ function BoardView() {
       users={store.users}
       onMove={(issueId, status: IssueStatus) => void store.moveIssue(issueId, status)}
       onSelect={(issueId) => store.setIssue(issueId)}
-      onCreate={() => void store.createIssue("New board issue")}
+      onCreate={() => void store.createIssue("보드에서 만든 새 이슈")}
     />
   );
 }
@@ -333,11 +357,11 @@ function BacklogView() {
   return (
     <div className="split-view">
       <section className="content-list">
-        <h2>Backlog</h2>
-        {backlog.length === 0 ? <EmptyState title="Backlog is clear" body="Unplanned issues will appear here." /> : backlog.map((issue) => <IssueListItem key={issue.id} issue={issue} assignee={store.users.find((user) => user.id === issue.assigneeId)} active={false} onClick={() => store.setIssue(issue.id)} />)}
+        <h2>백로그</h2>
+        {backlog.length === 0 ? <EmptyState title="백로그가 비어 있습니다" body="아직 스프린트에 포함되지 않은 이슈가 여기에 표시됩니다." /> : backlog.map((issue) => <IssueListItem key={issue.id} issue={issue} assignee={store.users.find((user) => user.id === issue.assigneeId)} active={false} onClick={() => store.setIssue(issue.id)} />)}
       </section>
       <section className="content-list">
-        <h2>Sprints</h2>
+        <h2>스프린트</h2>
         {sprints.map((sprint) => {
           const sprintIssues = store.issues.filter((issue) => issue.sprintId === sprint.id);
           const done = sprintIssues.filter((issue) => issue.status === "DONE").length;
@@ -346,7 +370,7 @@ function BacklogView() {
               <strong>{sprint.name}</strong>
               <p className="muted">{sprint.goal}</p>
               <div className="progress"><i style={{ width: `${sprintIssues.length ? (done / sprintIssues.length) * 100 : 0}%` }} /></div>
-              <small>{done}/{sprintIssues.length} complete · {sprint.status}</small>
+              <small>{done}/{sprintIssues.length} 완료 · {sprintStatusLabel[sprint.status] ?? sprint.status}</small>
             </AppCard>
           );
         })}
@@ -359,11 +383,11 @@ function TasksView() {
   const store = useFlowStore();
   return (
     <div className="content-list">
-      <h2>Tasks</h2>
+      <h2>업무</h2>
       {store.tasks.map((task) => (
         <AppCard key={task.id}>
           <strong>{task.title}</strong>
-          <p className="muted">{task.description ?? "No description"}</p>
+          <p className="muted">{task.description ?? "설명이 없습니다"}</p>
           <StatusBadge status={(task.status === "IN_PROGRESS" ? "IN_PROGRESS" : task.status === "DONE" ? "DONE" : "TODO") as IssueStatus} />
         </AppCard>
       ))}
@@ -375,8 +399,8 @@ function FilesView() {
   const files = useFlowStore().messages.filter((message) => message.type === "FILE");
   return (
     <div className="content-list">
-      <h2>Files</h2>
-      {files.length === 0 ? <EmptyState title="No files yet" body="Shared chat and issue attachments will be grouped here." /> : files.map((message) => <AppCard key={message.id}><strong>{String(message.metadata?.fileName ?? message.content)}</strong><p className="muted">{String(message.metadata?.size ?? "Unknown size")}</p></AppCard>)}
+      <h2>파일</h2>
+      {files.length === 0 ? <EmptyState title="아직 파일이 없습니다" body="채팅과 이슈에서 공유한 첨부파일이 여기에 모입니다." /> : files.map((message) => <AppCard key={message.id}><strong>{String(message.metadata?.fileName ?? message.content)}</strong><p className="muted">{String(message.metadata?.size ?? "크기 알 수 없음")}</p></AppCard>)}
     </div>
   );
 }
@@ -385,12 +409,12 @@ function NotificationsView() {
   const store = useFlowStore();
   return (
     <div className="content-list">
-      <h2>Notifications</h2>
+      <h2>알림</h2>
       {store.notifications.map((item) => (
         <AppCard key={item.id} className={item.read ? "" : "unread-card"}>
           <strong>{item.title}</strong>
           <p>{item.body}</p>
-          {!item.read && <AppButton onClick={() => void store.addIssueComment(String(item.data?.issueId ?? store.activeIssueId), "Acknowledged from notification center")}>Acknowledge</AppButton>}
+          {!item.read && <AppButton onClick={() => void store.markNotificationRead(item.id)}>확인</AppButton>}
         </AppCard>
       ))}
     </div>
@@ -403,9 +427,9 @@ function IntegrationsView() {
   return (
     <div className="split-view">
       <section className="content-list">
-        <h2>Connected services</h2>
+        <h2>연결된 서비스</h2>
         {store.integrations.map((integration) => <IntegrationCard key={integration.id} integration={integration} />)}
-        {["GitHub", "GitLab", "Slack", "Teams", "Notion", "Google Calendar", "Webhook"].map((name) => <AppCard key={name}><strong>{name}</strong><p className="muted">Provider boundary ready for API and webhook expansion.</p></AppCard>)}
+        {["GitHub", "GitLab", "Slack", "Teams", "Notion", "Google Calendar", "Webhook"].map((name) => <AppCard key={name}><strong>{name}</strong><p className="muted">API와 Webhook 확장을 위한 제공자 구조가 준비되어 있습니다.</p></AppCard>)}
       </section>
       <JiraConnectionForm loading={loading} onConnect={async (cloudUrl, email, apiToken) => { setLoading(true); await store.connectJira(cloudUrl, email, apiToken); setLoading(false); }} />
     </div>
@@ -417,11 +441,11 @@ function AdminView() {
   const members = store.workspaceMembers.filter((member) => member.workspaceId === store.activeWorkspaceId);
   return (
     <div className="content-list">
-      <h2>Workspace admin</h2>
-      <AppCard><strong>Invite link</strong><p className="muted">https://flowworks.local/invite/{store.activeWorkspaceId}</p><AppButton>Copy invite</AppButton></AppCard>
+      <h2>워크스페이스 관리자</h2>
+      <AppCard><strong>초대 링크</strong><p className="muted">https://flowworks.local/invite/{store.activeWorkspaceId}</p><AppButton onClick={() => void navigator.clipboard?.writeText(`https://flowworks.local/invite/${store.activeWorkspaceId}`)}>초대 링크 복사</AppButton></AppCard>
       {members.map((member) => {
         const user = store.users.find((item) => item.id === member.userId);
-        return <AppCard key={member.id} className="member-row"><Avatar user={user} /><strong>{user?.name}</strong><span>{member.role}</span></AppCard>;
+        return <AppCard key={member.id} className="member-row"><Avatar user={user} /><strong>{user?.name}</strong><span>{roleLabel[member.role] ?? member.role}</span></AppCard>;
       })}
     </div>
   );
@@ -431,20 +455,20 @@ function SettingsView() {
   const store = useFlowStore();
   return (
     <div className="content-list">
-      <h2>Settings</h2>
+      <h2>설정</h2>
       <AppCard className="profile-card">
         <Avatar user={store.user} size={54} />
         <div><strong>{store.user?.name}</strong><p className="muted">{store.user?.department} · {store.user?.position}</p></div>
       </AppCard>
-      <AppCard><strong>Notifications</strong><p className="muted">Room mute, issue mention only, DND, work-hour limits, desktop and push channels are modeled for expansion.</p></AppCard>
-      <AppCard><strong>Security</strong><p className="muted">JWT, refresh token, workspace ACL, rate limiting, webhook secrets, and encrypted integration config are handled by the API layer.</p></AppCard>
+      <AppCard><strong>알림</strong><p className="muted">채팅방 음소거, 이슈 멘션만 받기, 방해금지, 근무시간 제한, 데스크톱/푸시 알림 확장 구조가 준비되어 있습니다.</p></AppCard>
+      <AppCard><strong>보안</strong><p className="muted">JWT, Refresh Token, 워크스페이스 권한, 요청 제한, Webhook Secret, 연동 설정 암호화는 API 계층에서 처리하도록 설계했습니다.</p></AppCard>
       <AppCard className="backup-card">
-        <strong>Local backup</strong>
-        <p className="muted">Export or import all standalone data without any paid API or server.</p>
+        <strong>로컬 백업</strong>
+        <p className="muted">유료 API나 서버 없이 현재 기기의 데이터를 JSON으로 내보내거나 가져올 수 있습니다.</p>
         <div className="backup-actions">
-          <AppButton onClick={() => void store.exportBackup()}>Export JSON</AppButton>
+          <AppButton onClick={() => void store.exportBackup()}>JSON 내보내기</AppButton>
           <label className="file-import">
-            Import JSON
+            JSON 가져오기
             <input type="file" accept="application/json" onChange={(event) => {
               const file = event.target.files?.[0];
               if (file) void store.importBackup(file);
@@ -452,11 +476,11 @@ function SettingsView() {
             }} />
           </label>
           <AppButton className="danger" onClick={() => {
-            if (window.confirm("Reset local FlowWorks data on this device?")) void store.resetLocalData();
-          }}>Reset local data</AppButton>
+            if (window.confirm("이 기기의 FlowWorks 로컬 데이터를 초기화할까요?")) void store.resetLocalData();
+          }}>로컬 데이터 초기화</AppButton>
         </div>
       </AppCard>
-      <AppButton className="danger" onClick={store.logout}><LogOut size={16} /> Logout</AppButton>
+      <AppButton className="danger" onClick={store.logout}><LogOut size={16} /> 로그아웃</AppButton>
     </div>
   );
 }

@@ -37,7 +37,7 @@ export function KanbanBoard({
             <header>
               <span style={{ background: statusMeta.bg, color: statusMeta.color }}>{statusMeta.label}</span>
               <b>{columnIssues.length}</b>
-              <IconButton label={`Create in ${status}`} onClick={onCreate}><Plus size={16} /></IconButton>
+              <IconButton label={`${statusMeta.label}에 이슈 만들기`} onClick={onCreate}><Plus size={16} /></IconButton>
             </header>
             <div className="kanban-list">
               {columnIssues.map((issue) => (

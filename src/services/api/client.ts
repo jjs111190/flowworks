@@ -33,7 +33,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!response.ok) {
     const body = await response.json().catch(() => ({ message: response.statusText }));
-    throw new Error(body.message ?? "Request failed");
+    throw new Error(body.message ?? "요청에 실패했습니다");
   }
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
@@ -86,7 +86,7 @@ export const api = {
   connectJira: (input: { workspaceId: string; cloudUrl: string; email: string; apiToken: string }) =>
     isStandaloneMode ? standaloneApi.connectJira(input) : request<{ status: string }>("/integrations/jira/connect", { method: "POST", body: JSON.stringify(input) }),
   jiraProjects: (workspaceId: string) => isStandaloneMode ? standaloneApi.jiraProjects() : request<Array<{ id: string; key: string; name: string }>>(`/integrations/jira/projects?workspaceId=${workspaceId}`),
-  exportBackup: () => isStandaloneMode ? standaloneApi.exportBackup() : Promise.reject(new Error("Backup export is available in standalone mode")),
-  importBackup: (raw: string) => isStandaloneMode ? standaloneApi.importBackup(raw) : Promise.reject(new Error("Backup import is available in standalone mode")),
+  exportBackup: () => isStandaloneMode ? standaloneApi.exportBackup() : Promise.reject(new Error("백업 내보내기는 standalone 모드에서 사용할 수 있습니다")),
+  importBackup: (raw: string) => isStandaloneMode ? standaloneApi.importBackup(raw) : Promise.reject(new Error("백업 가져오기는 standalone 모드에서 사용할 수 있습니다")),
   resetStandalone: () => standaloneApi.reset()
 };

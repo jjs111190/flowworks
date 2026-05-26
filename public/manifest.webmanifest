@@ -1,7 +1,7 @@
 {
   "name": "FlowWorks",
   "short_name": "FlowWorks",
-  "description": "No-server work chat, collaboration, and Jira-style project management.",
+  "description": "서버 없이 설치해서 쓰는 업무 채팅, 협업, Jira형 프로젝트 관리 앱.",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",
