@@ -253,6 +253,19 @@ p {
   align-content: start;
 }
 
+.section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.section-heading .app-button {
+  min-height: 34px;
+  padding: 0 12px;
+  font-size: 13px;
+}
+
 .context-list h2,
 .content-list h2 {
   margin: 10px 0 2px;
@@ -900,6 +913,41 @@ p {
   border: 1px solid var(--hairline);
 }
 
+.issue-editor {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.issue-editor label,
+.comment-composer {
+  display: grid;
+  gap: 6px;
+}
+
+.issue-editor label {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.issue-editor select,
+.issue-editor input,
+.comment-composer input {
+  min-height: 38px;
+  width: 100%;
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  background: var(--surface-muted);
+  color: var(--text);
+  padding: 0 10px;
+}
+
+.comment-composer {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+}
+
 .external-link {
   color: var(--primary);
   font-weight: 650;
@@ -998,10 +1046,21 @@ p {
   gap: 12px;
 }
 
-.backup-actions {
+.backup-actions,
+.task-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+}
+
+.task-actions {
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.task-actions .app-button {
+  min-height: 34px;
+  box-shadow: none;
 }
 
 .file-import {

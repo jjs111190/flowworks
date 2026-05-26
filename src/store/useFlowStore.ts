@@ -70,9 +70,14 @@ interface FlowState {
   createIssueFromMessage: (messageId: string) => Promise<void>;
   createTaskFromMessage: (messageId: string) => Promise<void>;
   createIssue: (title: string) => Promise<void>;
+  createProject: (input: { name: string; key: string; description?: string }) => Promise<void>;
+  createSprint: (input: { name: string; goal?: string }) => Promise<void>;
+  updateIssue: (issueId: string, patch: Partial<Issue>) => Promise<void>;
   moveIssue: (issueId: string, status: IssueStatus) => Promise<void>;
   addIssueComment: (issueId: string, content: string) => Promise<void>;
+  updateTask: (taskId: string, status: string) => Promise<void>;
   markNotificationRead: (notificationId: string) => Promise<void>;
+  markAllNotificationsRead: () => Promise<void>;
   connectJira: (cloudUrl: string, email: string, apiToken: string) => Promise<void>;
   exportBackup: () => Promise<void>;
   importBackup: (file: File) => Promise<void>;
@@ -237,6 +242,29 @@ export const useFlowStore = create<FlowState>((set, get) => ({
     const issue = await api.createIssue({ workspaceId, projectId, title });
     set({ issues: [...get().issues, issue], activeIssueId: issue.id });
   },
+  async createProject(input) {
+    const workspaceId = get().activeWorkspaceId;
+    if (!workspaceId) return;
+    const { project, room } = await api.createProject({ workspaceId, ...input });
+    set({
+      projects: [...get().projects, project],
+      rooms: [...get().rooms, room],
+      activeProjectId: project.id,
+      activeRoomId: room.id,
+      activeView: "projects"
+    });
+  },
+  async createSprint(input) {
+    const workspaceId = get().activeWorkspaceId;
+    const projectId = get().activeProjectId;
+    if (!workspaceId || !projectId) return;
+    const sprint = await api.createSprint({ workspaceId, projectId, ...input });
+    set({ sprints: [...get().sprints, sprint], activeView: "backlog" });
+  },
+  async updateIssue(issueId, patch) {
+    const updated = await api.updateIssue(issueId, patch);
+    set({ issues: get().issues.map((issue) => (issue.id === updated.id ? updated : issue)), activeIssueId: updated.id });
+  },
   async moveIssue(issueId, status) {
     const previous = get().issues;
     set({ issues: previous.map((issue) => (issue.id === issueId ? { ...issue, status } : issue)) });
@@ -255,9 +283,19 @@ export const useFlowStore = create<FlowState>((set, get) => ({
       issues: get().issues.map((issue) => (issue.id === issueId ? { ...issue, commentCount: issue.commentCount + 1 } : issue))
     });
   },
+  async updateTask(taskId, status) {
+    const updated = await api.updateTask(taskId, { status });
+    set({ tasks: get().tasks.map((task) => (task.id === updated.id ? updated : task)) });
+  },
   async markNotificationRead(notificationId) {
     const notification = await api.markNotificationRead(notificationId);
     set({ notifications: get().notifications.map((item) => (item.id === notification.id ? notification : item)) });
+  },
+  async markAllNotificationsRead() {
+    const workspaceId = get().activeWorkspaceId;
+    if (!workspaceId) return;
+    const notifications = await api.markAllNotificationsRead(workspaceId);
+    set({ notifications });
   },
   async connectJira(cloudUrl, email, apiToken) {
     const workspaceId = get().activeWorkspaceId;

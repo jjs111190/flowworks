@@ -171,7 +171,10 @@ function TopBar({ workspaceName, projectName, roomName }: { workspaceName: strin
       </div>
       <div className="top-actions">
         <span className={`socket-pill ${store.socketStatus.toLowerCase()}`}>{socketStatusLabel[store.socketStatus]}</span>
-        <AppButton onClick={() => void store.createIssue("빠른 추가 이슈")}>새 이슈</AppButton>
+        <AppButton onClick={() => {
+          const title = window.prompt("새 이슈 제목", "빠른 추가 이슈");
+          if (title?.trim()) void store.createIssue(title.trim());
+        }}>새 이슈</AppButton>
       </div>
     </header>
   );
@@ -326,12 +329,32 @@ function ProjectsView() {
   return (
     <div className="split-view">
       <section className="content-list">
-        <h2>{project?.name ?? "프로젝트"}</h2>
+        <div className="section-heading">
+          <h2>{project?.name ?? "프로젝트"}</h2>
+          <AppButton onClick={() => {
+            const name = window.prompt("프로젝트 이름", "새 프로젝트");
+            if (!name?.trim()) return;
+            const key = window.prompt("프로젝트 키", name.slice(0, 3).toUpperCase());
+            if (key?.trim()) void store.createProject({ name: name.trim(), key: key.trim() });
+          }}>새 프로젝트</AppButton>
+        </div>
+        <AppButton onClick={() => {
+          const title = window.prompt("새 이슈 제목", "새 업무");
+          if (title?.trim()) void store.createIssue(title.trim());
+        }}>이슈 만들기</AppButton>
         {projectIssues.map((issue) => (
           <IssueListItem key={issue.id} issue={issue} assignee={store.users.find((user) => user.id === issue.assigneeId)} active={detail?.id === issue.id} onClick={() => store.setIssue(issue.id)} />
         ))}
       </section>
-      <IssueDetailPanel issue={detail} assignee={store.users.find((user) => user.id === detail?.assigneeId)} reporter={store.users.find((user) => user.id === detail?.reporterId)} comments={store.issueComments.filter((comment) => comment.issueId === detail?.id)} />
+      <IssueDetailPanel
+        issue={detail}
+        assignee={store.users.find((user) => user.id === detail?.assigneeId)}
+        reporter={store.users.find((user) => user.id === detail?.reporterId)}
+        users={store.users}
+        comments={store.issueComments.filter((comment) => comment.issueId === detail?.id)}
+        onUpdate={(patch) => detail && void store.updateIssue(detail.id, patch)}
+        onComment={(content) => detail && void store.addIssueComment(detail.id, content)}
+      />
     </div>
   );
 }
@@ -362,6 +385,10 @@ function BacklogView() {
       </section>
       <section className="content-list">
         <h2>스프린트</h2>
+        <AppButton onClick={() => {
+          const name = window.prompt("스프린트 이름", "새 스프린트");
+          if (name?.trim()) void store.createSprint({ name: name.trim(), goal: window.prompt("스프린트 목표", "이번 주 핵심 업무") ?? undefined });
+        }}>스프린트 만들기</AppButton>
         {sprints.map((sprint) => {
           const sprintIssues = store.issues.filter((issue) => issue.sprintId === sprint.id);
           const done = sprintIssues.filter((issue) => issue.status === "DONE").length;
@@ -389,6 +416,11 @@ function TasksView() {
           <strong>{task.title}</strong>
           <p className="muted">{task.description ?? "설명이 없습니다"}</p>
           <StatusBadge status={(task.status === "IN_PROGRESS" ? "IN_PROGRESS" : task.status === "DONE" ? "DONE" : "TODO") as IssueStatus} />
+          <div className="task-actions">
+            <AppButton onClick={() => void store.updateTask(task.id, "TODO")}>할 일</AppButton>
+            <AppButton onClick={() => void store.updateTask(task.id, "IN_PROGRESS")}>진행</AppButton>
+            <AppButton onClick={() => void store.updateTask(task.id, "DONE")}>완료</AppButton>
+          </div>
         </AppCard>
       ))}
     </div>
@@ -409,7 +441,10 @@ function NotificationsView() {
   const store = useFlowStore();
   return (
     <div className="content-list">
-      <h2>알림</h2>
+      <div className="section-heading">
+        <h2>알림</h2>
+        <AppButton onClick={() => void store.markAllNotificationsRead()}>전체 확인</AppButton>
+      </div>
       {store.notifications.map((item) => (
         <AppCard key={item.id} className={item.read ? "" : "unread-card"}>
           <strong>{item.title}</strong>

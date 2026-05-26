@@ -1,4 +1,4 @@
-import type { BootstrapPayload, Issue, IssueComment, Message, NotificationItem, Task } from "../../types/models";
+import type { BootstrapPayload, Issue, IssueComment, Message, NotificationItem, Project, Room, Sprint, Task } from "../../types/models";
 import { hasStandaloneSession, standaloneApi } from "../standalone/localDatabase";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "/api";
@@ -74,8 +74,14 @@ export const api = {
   createTaskFromMessage: (messageId: string) => isStandaloneMode ? standaloneApi.createTaskFromMessage(messageId) : request<Task>(`/messages/${messageId}/task`, { method: "POST" }),
   createIssue: (input: Partial<Issue> & Pick<Issue, "workspaceId" | "projectId" | "title">) =>
     isStandaloneMode ? standaloneApi.createIssue(input) : request<Issue>("/issues", { method: "POST", body: JSON.stringify(input) }),
+  createProject: (input: { workspaceId: string; name: string; key: string; description?: string }) =>
+    isStandaloneMode ? standaloneApi.createProject(input) : request<{ project: Project; room: Room }>("/projects", { method: "POST", body: JSON.stringify(input) }),
+  createSprint: (input: { workspaceId: string; projectId: string; name: string; goal?: string; startDate?: string; endDate?: string }) =>
+    isStandaloneMode ? standaloneApi.createSprint(input) : request<Sprint>("/sprints", { method: "POST", body: JSON.stringify(input) }),
   updateIssue: (issueId: string, patch: Partial<Issue>) =>
     isStandaloneMode ? standaloneApi.updateIssue(issueId, patch) : request<Issue>(`/issues/${issueId}`, { method: "PATCH", body: JSON.stringify(patch) }),
+  updateTask: (taskId: string, patch: Partial<Task>) =>
+    isStandaloneMode ? standaloneApi.updateTask(taskId, patch) : request<Task>(`/tasks/${taskId}`, { method: "PATCH", body: JSON.stringify(patch) }),
   updateMessage: (messageId: string, content: string) =>
     isStandaloneMode ? standaloneApi.updateMessage(messageId, content) : request<Message>(`/messages/${messageId}`, { method: "PATCH", body: JSON.stringify({ content }) }),
   deleteMessage: (messageId: string) =>
@@ -83,6 +89,8 @@ export const api = {
   addIssueComment: (issueId: string, content: string) =>
     isStandaloneMode ? standaloneApi.addIssueComment(issueId, content) : request<IssueComment>(`/issues/${issueId}/comments`, { method: "POST", body: JSON.stringify({ content }) }),
   markNotificationRead: (id: string) => isStandaloneMode ? standaloneApi.markNotificationRead(id) : request<NotificationItem>(`/notifications/${id}/read`, { method: "PATCH" }),
+  markAllNotificationsRead: (workspaceId: string) =>
+    isStandaloneMode ? standaloneApi.markAllNotificationsRead(workspaceId) : request<NotificationItem[]>(`/notifications/read-all`, { method: "PATCH", body: JSON.stringify({ workspaceId }) }),
   connectJira: (input: { workspaceId: string; cloudUrl: string; email: string; apiToken: string }) =>
     isStandaloneMode ? standaloneApi.connectJira(input) : request<{ status: string }>("/integrations/jira/connect", { method: "POST", body: JSON.stringify(input) }),
   jiraProjects: (workspaceId: string) => isStandaloneMode ? standaloneApi.jiraProjects() : request<Array<{ id: string; key: string; name: string }>>(`/integrations/jira/projects?workspaceId=${workspaceId}`),

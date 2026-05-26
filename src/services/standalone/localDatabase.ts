@@ -365,14 +365,71 @@ export const standaloneApi = {
       updatedAt: now()
     };
     db.issues.push(issue);
+    db.activityLogs.push({ id: id("act"), workspaceId: input.workspaceId, actorId: user.id, entityType: "ISSUE", entityId: issue.id, action: "ISSUE_CREATED", metadata: { issueKey: issue.issueKey }, createdAt: now() });
     writeDb(db);
     return issue;
+  },
+  async createProject(input: { workspaceId: string; name: string; key: string; description?: string }) {
+    const db = readDb();
+    const user = currentUser(db);
+    const key = input.key.trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8);
+    if (!key) throw new Error("프로젝트 키가 필요합니다");
+    if (db.projects.some((project) => project.workspaceId === input.workspaceId && project.key === key)) throw new Error("이미 사용 중인 프로젝트 키입니다");
+    const project: Project = {
+      id: id("prj"),
+      workspaceId: input.workspaceId,
+      key,
+      name: input.name.trim(),
+      description: input.description,
+      color: ["#007aff", "#34c759", "#ff9f0a", "#af52de", "#ff2d55"][db.projects.length % 5],
+      leadId: user.id,
+      createdAt: now(),
+      updatedAt: now()
+    };
+    const room: Room = {
+      id: id("room"),
+      workspaceId: input.workspaceId,
+      projectId: project.id,
+      type: "PROJECT",
+      name: `프로젝트-${key.toLowerCase()}`,
+      createdBy: user.id,
+      createdAt: now(),
+      updatedAt: now()
+    };
+    const workspaceMembers = db.workspaceMembers.filter((member) => member.workspaceId === input.workspaceId);
+    db.projects.push(project);
+    db.rooms.push(room);
+    db.roomMembers.push(...workspaceMembers.map((member) => ({ id: id("rm"), roomId: room.id, userId: member.userId, role: "MEMBER" as const, muted: false, pinned: false, joinedAt: now() })));
+    db.activityLogs.push({ id: id("act"), workspaceId: input.workspaceId, actorId: user.id, entityType: "PROJECT", entityId: project.id, action: "PROJECT_CREATED", metadata: { key }, createdAt: now() });
+    writeDb(db);
+    return { project, room };
+  },
+  async createSprint(input: { workspaceId: string; projectId: string; name: string; goal?: string; startDate?: string; endDate?: string }) {
+    const db = readDb();
+    const user = currentUser(db);
+    const sprint: Sprint = {
+      id: id("spr"),
+      workspaceId: input.workspaceId,
+      projectId: input.projectId,
+      name: input.name.trim(),
+      goal: input.goal,
+      status: "PLANNED",
+      startDate: input.startDate,
+      endDate: input.endDate,
+      createdAt: now(),
+      updatedAt: now()
+    };
+    db.sprints.push(sprint);
+    db.activityLogs.push({ id: id("act"), workspaceId: input.workspaceId, actorId: user.id, entityType: "SPRINT", entityId: sprint.id, action: "SPRINT_CREATED", createdAt: now() });
+    writeDb(db);
+    return sprint;
   },
   async updateIssue(issueId: string, patch: Partial<Issue>) {
     const db = readDb();
     const issue = db.issues.find((item) => item.id === issueId);
     if (!issue) throw new Error("이슈를 찾을 수 없습니다");
     Object.assign(issue, patch, { updatedAt: now() });
+    db.activityLogs.push({ id: id("act"), workspaceId: issue.workspaceId, actorId: currentUser(db).id, entityType: "ISSUE", entityId: issue.id, action: "ISSUE_UPDATED", metadata: patch, createdAt: now() });
     writeDb(db);
     return issue;
   },
@@ -385,8 +442,19 @@ export const standaloneApi = {
     db.issueComments.push(comment);
     issue.commentCount += 1;
     issue.updatedAt = now();
+    db.activityLogs.push({ id: id("act"), workspaceId: issue.workspaceId, actorId: user.id, entityType: "ISSUE", entityId: issue.id, action: "ISSUE_COMMENTED", createdAt: now() });
     writeDb(db);
     return comment;
+  },
+  async updateTask(taskId: string, patch: Partial<Task>) {
+    const db = readDb();
+    const user = currentUser(db);
+    const task = db.tasks.find((item) => item.id === taskId);
+    if (!task) throw new Error("업무를 찾을 수 없습니다");
+    Object.assign(task, patch, { updatedAt: now() });
+    db.activityLogs.push({ id: id("act"), workspaceId: task.workspaceId, actorId: user.id, entityType: "TASK", entityId: task.id, action: "TASK_UPDATED", metadata: patch, createdAt: now() });
+    writeDb(db);
+    return task;
   },
   async markNotificationRead(notificationId: string) {
     const db = readDb();
@@ -395,6 +463,15 @@ export const standaloneApi = {
     notification.read = true;
     writeDb(db);
     return notification;
+  },
+  async markAllNotificationsRead(workspaceId: string) {
+    const db = readDb();
+    const user = currentUser(db);
+    db.notifications.forEach((notification) => {
+      if (notification.workspaceId === workspaceId && notification.userId === user.id) notification.read = true;
+    });
+    writeDb(db);
+    return db.notifications.filter((notification) => notification.workspaceId === workspaceId && notification.userId === user.id);
   },
   async connectJira(input: { workspaceId: string }) {
     const db = readDb();
